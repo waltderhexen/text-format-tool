@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex">
+<title>テキスト整形ツール</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--tx:#1d2329;--sub:#5d6873;--bd:#d3d9df;--ac:#2563b0;--ac-tx:#fff;--in:#fff;--mk:#ffe58a;--mkc:#ff9f43;--err:#c0392b;--sh:0 1px 3px rgba(0,0,0,.08)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121518;--card:#1b1f23;--tx:#e6e9ec;--sub:#9aa5b0;--bd:#343b43;--ac:#5aa2e8;--ac-tx:#08131f;--in:#14181b;--mk:#6b5a12;--mkc:#b8650f;--err:#ff7b6b;--sh:none}}
+:root[data-theme=dark]{--bg:#121518;--card:#1b1f23;--tx:#e6e9ec;--sub:#9aa5b0;--bd:#343b43;--ac:#5aa2e8;--ac-tx:#08131f;--in:#14181b;--mk:#6b5a12;--mkc:#b8650f;--err:#ff7b6b;--sh:none}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.6 system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));background:var(--card);border-bottom:1px solid var(--bd)}
+header h1{font-size:17px;margin:0}
+.hbtns{display:flex;gap:6px;flex-wrap:wrap}
+main{max-width:1400px;margin:0 auto;padding:12px max(12px,env(safe-area-inset-right)) 40px max(12px,env(safe-area-inset-left));display:grid;gap:14px}
+h2{font-size:15px;margin:0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;box-shadow:var(--sh)}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pane{display:flex;flex-direction:column;gap:8px;min-width:0}
+.pane-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn{min-height:44px;padding:0 14px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);font:inherit;cursor:pointer;touch-action:manipulation}
+.btn:hover{border-color:var(--ac)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--ac);color:var(--ac-tx);border-color:var(--ac);font-weight:700}
+.btn.sm{min-height:36px;padding:0 10px;font-size:13px}
+textarea,input[type=text],input[type=number],select{font:inherit;color:var(--tx);background:var(--in);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;width:100%}
+select{min-height:40px}
+textarea:focus,input:focus,select:focus,.btn:focus-visible,summary:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+.ed-text{font:15px/1.7 system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;letter-spacing:0;tab-size:4;white-space:pre-wrap;overflow-wrap:break-word;word-break:normal;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;margin:0}
+#src{height:var(--edh);resize:none;display:block;width:100%;background:var(--in)}
+.editor{position:relative;height:var(--edh);background:var(--in);border-radius:8px}
+#hl{position:absolute;inset:0;overflow:hidden;pointer-events:none;color:transparent;border-color:transparent;z-index:0}
+#hl mark{background:var(--mk);color:transparent;border-radius:2px}
+#hl mark.cur{background:var(--mkc)}
+#out{position:absolute;inset:0;width:100%;height:100%;resize:none;background:transparent;z-index:1}
+:root{--edh:clamp(240px,46vh,560px)}
+.counts{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--sub)}
+.chip{border:1px solid var(--bd);border-radius:999px;padding:1px 9px;white-space:nowrap}
+.chip b{color:var(--tx);font-variant-numeric:tabular-nums}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chk{display:flex;align-items:center;gap:8px;min-height:32px;cursor:pointer}
+.chk input{width:18px;height:18px;flex:none}
+label{display:block}
+label.chk{display:flex}
+label>input[type=text],label>input[type=number],label>select{margin-top:3px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.row>input[type=text]{flex:1 1 200px;width:auto}
+.row .count{min-width:90px;font-size:13px;color:var(--sub);text-align:center}
+.err{color:var(--err);font-size:13px;min-height:1px}
+.opts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px;align-items:start}
+details.grp{background:var(--card);border:1px solid var(--bd);border-radius:12px;box-shadow:var(--sh)}
+details.grp>summary{list-style:none;cursor:pointer;padding:12px;font-weight:700;display:flex;align-items:center;gap:8px;min-height:48px}
+details.grp>summary::-webkit-details-marker{display:none}
+details.grp>summary::before{content:"▸";color:var(--sub);transition:transform .15s}
+details.grp[open]>summary::before{transform:rotate(90deg)}
+.gbody{padding:0 12px 12px;display:grid;gap:8px}
+.badge{font-size:12px;font-weight:400;background:var(--ac);color:var(--ac-tx);border-radius:999px;padding:0 8px}
+.badge:empty{display:none}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+fieldset.rule{border:1px solid var(--bd);border-radius:10px;padding:8px 10px;margin:0;display:grid;gap:8px;min-width:0}
+fieldset.rule legend{padding:0 6px;font-weight:600}
+.note,.hint{font-size:12px;color:var(--sub);margin:0}
+code{background:var(--bg);border:1px solid var(--bd);border-radius:4px;padding:0 4px;font-size:12px}
+.sub{font-size:13px;color:var(--sub)}
+.order{font-size:13px;color:var(--sub);margin:0}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:#222;color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:.2s;z-index:50;max-width:92vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%)}
+.drop{outline:2px dashed var(--ac);outline-offset:-4px}
+@media (max-width:899px){
+  .panes{grid-template-columns:1fr}
+  textarea,input[type=text],input[type=number],select{font-size:16px}
+  .ed-text{font-size:16px}
+  .opts-grid{grid-template-columns:1fr}
+  :root{--edh:clamp(220px,34vh,420px)}
+}
+@media (max-width:520px){.grid3{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>テキスト整形ツール</h1>
+  <div class="hbtns">
+    <button class="btn sm" id="undoBtn" title="元に戻す (Ctrl+Z)" disabled>↶ 元に戻す</button>
+    <button class="btn sm" id="redoBtn" title="やり直し (Ctrl+Y)" disabled>↷ やり直し</button>
+    <button class="btn sm" id="themeBtn" title="表示テーマ">テーマ: 自動</button>
+  </div>
+</header>
+
+<main>
+  <section class="panes">
+    <div class="pane card">
+      <div class="pane-head">
+        <h2>元テキスト</h2>
+        <div class="tools">
+          <button class="btn sm" id="pasteBtn">貼り付け</button>
+          <button class="btn sm" id="openBtn">ファイルを開く</button>
+          <select id="enc" class="sm" style="width:auto;min-height:36px;padding:2px 8px" title="文字コード">
+            <option value="auto">文字コード自動</option>
+            <option value="utf-8">UTF-8</option>
+            <option value="shift_jis">Shift_JIS</option>
+          </select>
+          <button class="btn sm" id="clearBtn">クリア</button>
+          <input type="file" id="fileIn" hidden accept=".txt,.text,.log,.md,.csv,.html,.htm,.json,text/*">
+        </div>
+      </div>
+      <textarea id="src" class="ed-text" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="ここにチャットログを貼り付け(.txt のドラッグ&ドロップも可)"></textarea>
+      <div class="counts" id="srcCounts"></div>
+    </div>
+
+    <div class="pane card">
+      <div class="pane-head">
+        <h2>整形後(編集もできます)</h2>
+        <div class="tools">
+          <button class="btn sm" id="toSrcBtn" title="整形後のテキストを元テキストに移して、続けて別の処理をかけます">↑ 元テキストにする</button>
+          <button class="btn sm" id="dlBtn">.txt 保存</button>
+          <button class="btn sm primary copyBtn">コピー</button>
+        </div>
+      </div>
+      <div class="editor">
+        <div id="hl" class="ed-text" aria-hidden="true"></div>
+        <textarea id="out" class="ed-text" spellcheck="false" autocomplete="off" autocapitalize="off" placeholder="「整形を実行」を押すとここに結果が出ます"></textarea>
+      </div>
+      <div class="counts" id="outCounts"></div>
+      <button class="btn primary copyBtn">整形後テキストをコピー</button>
+    </div>
+  </section>
+
+  <section class="card actions">
+    <button class="btn primary" id="runBtn" style="min-width:160px">整形を実行</button>
+    <label class="chk"><input type="checkbox" id="auto" data-k="auto"> 入力や設定を変えたら自動で整形</label>
+    <span class="sub">処理は下の ①→⑦ の順に固定で一括適用されます(チェックを入れた項目のみ)。</span>
+  </section>
+
+  <section class="card" id="findCard">
+    <h2>検索・置換(整形後テキストが対象)</h2>
+    <div class="row">
+      <input type="text" id="fq" placeholder="検索する文字" autocomplete="off" spellcheck="false">
+      <span class="count" id="fcount"></span>
+      <button class="btn sm" id="fprev" title="前へ (Shift+Enter)">▲ 前へ</button>
+      <button class="btn sm" id="fnext" title="次へ (Enter)">▼ 次へ</button>
+    </div>
+    <div class="row">
+      <input type="text" id="fr" placeholder="置換後の文字(空欄で削除)" autocomplete="off" spellcheck="false">
+      <button class="btn sm" id="frep">置換</button>
+      <button class="btn sm" id="frepall">すべて置換</button>
+      <button class="btn sm" id="fdel">一致をすべて削除</button>
+    </div>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="fcs" data-k="f_cs"> 大文字小文字を区別</label>
+      <label class="chk"><input type="checkbox" id="frx" data-k="f_rx"> 正規表現</label>
+      <span class="note">正規表現では <code>$1</code> <code>$&amp;</code> <code>\n</code> <code>\t</code> が置換後に使えます。<code>^</code> <code>$</code> は各行の先頭・末尾です。</span>
+    </div>
+    <div class="err" id="ferr"></div>
+  </section>
+
+  <section>
+    <p class="order">▼ 整形オプション(①→⑦の順に適用)。項目名の横の数字は、そのグループで有効な設定の数です。</p>
+    <div class="opts-grid" id="options">
+
+      <details class="grp"><summary>① プレーンテキスト化<span class="badge"></span></summary><div class="gbody">
+        <label class="chk"><input type="checkbox" data-k="pt_html" data-m checked> HTMLタグを除去(<code>&lt;br&gt;</code> や段落は改行にします)</label>
+        <label class="chk"><input type="checkbox" data-k="pt_entity" data-m checked> HTML実体参照を戻す(<code>&amp;amp;</code> → <code>&amp;</code> など)</label>
+        <label class="chk"><input type="checkbox" data-k="pt_md" data-m> Markdown記法を除去(見出し・太字・リンクなど)</label>
+        <label class="chk"><input type="checkbox" data-k="paste_rich" checked> 元テキスト欄への貼り付け時、リッチテキスト(HTML)は構造を保ったまま文字だけ取り込む</label>
+        <p class="note">改行コードは常に統一します。Markdown除去は <code>*動作*</code> のような表記も外すので、ロールプレイログでは注意してください。</p>
+      </div></details>
+
+      <details class="grp"><summary>② チャットログ向け(行頭の整理)<span class="badge"></span></summary><div class="gbody">
+        <label class="chk"><input type="checkbox" data-k="pf_time" data-m> 行頭のタイムスタンプを削除(例 <code>[12:34]</code> <code>2026/11/25 12:34:56</code>)</label>
+        <label class="chk"><input type="checkbox" data-k="pf_tag" data-m> 行頭の <code>[ルーム名]</code> / <code>【タグ】</code> を削除</label>
+        <label class="chk"><input type="checkbox" data-k="pf_sep_on" data-m> 行頭から最初に現れる区切り記号より前を処理する</label>
+        <div class="grid2">
+          <label>区切り記号(文字列)<input type="text" data-k="pf_sep" value=" : " placeholder="例: 「 : 」「:」「>」"></label>
+          <label>処理<select data-k="pf_mode"><option value="del">削除</option><option value="rep">置換</option></select></label>
+        </div>
+        <label>置換後の文字列(処理=置換のとき。<code>\n</code> で改行)<input type="text" data-k="pf_rep" value=""></label>
+        <label class="chk"><input type="checkbox" data-k="pf_incl" checked> 区切り記号も含めて処理する</label>
+        <p class="note">例: <code>[main]キャラ名 : 本文</code> は、区切りに「 : 」を指定して削除すると <code>本文</code> だけが残ります。区切りが無い行は変わりません。</p>
+      </div></details>
+
+      <details class="grp"><summary>③ 文字種変換(全角↔半角)<span class="badge"></span></summary><div class="gbody">
+        <label>英数字<select data-k="cv_alnum" data-m><option value="">変更しない</option><option value="half">全角 → 半角</option><option value="full">半角 → 全角</option></select></label>
+        <label>カタカナ<select data-k="cv_kana" data-m><option value="">変更しない</option><option value="full">半角 → 全角</option><option value="half">全角 → 半角</option></select></label>
+        <label>記号(！＂＃…などASCII相当)<select data-k="cv_sym" data-m><option value="">変更しない</option><option value="half">全角 → 半角</option><option value="full">半角 → 全角</option></select></label>
+        <p class="note">「」や。、は対象外です。全角スペースは④で扱います。</p>
+      </div></details>
+
+      <details class="grp"><summary>④ 文字の削除<span class="badge"></span></summary><div class="gbody">
+        <label class="chk"><input type="checkbox" data-k="del_emoji" data-m> 絵文字(©®™‼⁉↔など文字としても使う記号は残します)</label>
+        <label class="chk"><input type="checkbox" data-k="del_ctrl" data-m checked> 制御文字(改行・タブ以外)</label>
+        <label class="chk"><input type="checkbox" data-k="del_invis" data-m checked> ゼロ幅文字などの不可視文字</label>
+        <label>機種依存文字(①Ⅲ㈱㌔№など)<select data-k="del_md" data-m><option value="">変更しない</option><option value="nfkc">通常の文字に置換(① → 1、㈱ → (株))</option><option value="del">削除</option></select></label>
+        <label class="chk"><input type="checkbox" data-k="del_half" data-m> 半角スペース(NBSPなどを含む)をすべて削除</label>
+        <label class="chk"><input type="checkbox" data-k="del_full" data-m> 全角スペースをすべて削除</label>
+        <label class="chk"><input type="checkbox" data-k="del_tab" data-m> タブをすべて削除</label>
+        <label class="chk"><input type="checkbox" data-k="del_indent" data-m> 行頭のインデント(空白・タブ)を削除</label>
+        <label class="chk"><input type="checkbox" data-k="del_trail" data-m checked> 行末の空白を削除</label>
+        <label class="chk"><input type="checkbox" data-k="del_collapse" data-m> 連続する空白を1つにまとめる(行頭は除く)</label>
+      </div></details>
+
+      <details class="grp"><summary>⑤ 空行・重複行<span class="badge"></span></summary><div class="gbody">
+        <label>空白行<select data-k="blank" data-m><option value="">そのまま</option><option value="all" selected>すべて削除</option><option value="one">連続する空白行を1行にまとめる</option></select></label>
+        <label class="chk"><input type="checkbox" data-k="blank_edge"> 文頭・文末の空白行を削除(「すべて削除」以外の場合に有効)</label>
+        <label>重複行<select data-k="dup" data-m><option value="">そのまま</option><option value="adj">連続する同じ行を1行にする</option><option value="all">2回目以降の同じ行をすべて削除</option></select></label>
+        <p class="note">空白だけの行も空白行として扱います。重複判定は前後の空白を無視します。空行は重複削除の対象外です。</p>
+      </div></details>
+
+      <details class="grp"><summary>⑥ 記号区切りで改行<span class="badge"></span></summary><div class="gbody">
+        <label class="chk"><input type="checkbox" data-k="br_on" data-m> 指定した記号のあとで改行する</label>
+        <label>区切り記号(文字をそのまま並べる)<input type="text" data-k="br_chars" value="。！？" placeholder="例: 。！？"></label>
+        <label class="chk"><input type="checkbox" data-k="br_keep" checked> 既存の改行を維持する(オフ:一度すべてつなげてから分割)</label>
+        <label class="chk"><input type="checkbox" data-k="br_kin" checked> 禁則処理:区切りの直後の閉じ括弧(」』）など)は前の行に残す</label>
+        <label class="chk"><input type="checkbox" data-k="br_depth" checked> 「」『』（）などの内側では改行しない</label>
+        <label class="chk"><input type="checkbox" data-k="br_del"> 区切り記号を消す(閉じ括弧は残す)</label>
+        <p class="note">連続した区切り(「！？」「。。」)は1か所として扱います。改行後の行頭の空白は取り除きます。</p>
+      </div></details>
+
+      <details class="grp"><summary>⑦ 文頭・文末への挿入(括弧・箇条書きなど)<span class="badge"></span></summary><div class="gbody">
+        <label class="chk"><input type="checkbox" data-k="ins_skip" checked> 空行は行数に数えず、記号も付けない</label>
+        <div id="rules"></div>
+        <p class="note"><b>m行おき</b>は「m行飛ばし」です。0=全行、1=1行おき(1,3,5…)、2=2行おき(1,4,7…)。行番号は⑥までの処理後のテキストで数えます。文頭・文末に同じ記号が既にある行には重ねて付けません(文中の記号は見ません)。インデントがある行は、インデントの内側に付けます。</p>
+      </div></details>
+
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>設定とプリセット</h2>
+    <p class="note" style="margin-top:4px">設定はこの端末のブラウザ内(localStorage)に自動保存されます。入力したテキストは保存・送信されません。</p>
+    <div class="row">
+      <select id="presetSel" style="flex:1 1 180px;width:auto"></select>
+      <button class="btn sm" id="presetLoad">読み込む</button>
+      <button class="btn sm" id="presetDel">削除</button>
+    </div>
+    <div class="row">
+      <input type="text" id="presetName" placeholder="プリセット名(例: ロールプレイログ整形)" autocomplete="off">
+      <button class="btn sm" id="presetSave">現在の設定を保存</button>
+    </div>
+    <div class="row">
+      <button class="btn sm" id="expBtn">設定を書き出す(.json)</button>
+      <button class="btn sm" id="impBtn">設定を読み込む</button>
+      <button class="btn sm" id="resetBtn">設定を初期化</button>
+      <input type="file" id="impIn" hidden accept=".json,application/json">
+    </div>
+  </section>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* =========================================================
+   コア処理(DOMに依存しない純粋関数)
+   ========================================================= */
+function toInt(v, def){ const n = parseInt(v, 10); return Number.isFinite(n) ? n : def; }
+function esc(s){ return s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+const ENT = {amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:'\u00A0',yen:'¥',copy:'©',reg:'®',hellip:'…',ndash:'–',mdash:'—',laquo:'«',raquo:'»',lsquo:'‘',rsquo:'’',ldquo:'“',rdquo:'”'};
+function decodeEntities(t){
+  if (t.indexOf('&') < 0) return t;
+  return t.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, (m, e) => {
+    if (e[0] === '#') {
+      const cp = (e[1] === 'x' || e[1] === 'X') ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      if (cp > 0 && cp <= 0x10FFFF && !(cp >= 0xD800 && cp <= 0xDFFF)) return String.fromCodePoint(cp);
+      return m;
+    }
+    const v = ENT[e.toLowerCase()];
+    return v !== undefined ? v : m;
+  });
+}
+function hasHtml(t){ return /<\/?[a-zA-Z][^<>]*>/.test(t); }
+function stripHtml(t){
+  t = t.replace(/\u0001/g, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|style|head|template|noscript)\b[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?(?:address|article|aside|blockquote|div|dl|dt|dd|fieldset|figcaption|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|tbody|thead|tfoot|tr|ul)\b[^>]*>/gi, '\u0001')
+    .replace(/<\/?(?:td|th)\b[^>]*>/gi, ' ')
+    .replace(/<\/?[a-zA-Z][^<>]*>/g, '');
+  t = t.replace(/[ \t\n]*\u0001(?:[ \t\n]*\u0001)*[ \t\n]*/g, '\n');
+  return t.replace(/^\n+/, '');
+}
+function stripMarkdown(t){
+  return t
+    .replace(/^[ \t]*(```|~~~).*$/gm, '')
+    .replace(/^[ \t]{0,3}#{1,6}[ \t]+/gm, '')
+    .replace(/^[ \t]{0,3}>[ \t]?/gm, '')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*(?=\S)([\s\S]*?\S)\*\*/g, '$1')
+    .replace(/(?<![A-Za-z0-9_])__(?=\S)([\s\S]*?\S)__(?![A-Za-z0-9_])/g, '$1')
+    .replace(/\*(?=\S)([^*\n]+?)\*/g, '$1')
+    .replace(/~~(?=\S)([\s\S]*?\S)~~/g, '$1')
+    .replace(/`([^`\n]+)`/g, '$1');
+}
+function normalizeNewlines(t){ return t.replace(/\r\n?|\u2028|\u2029|\u0085/g, '\n').replace(/^\uFEFF/, ''); }
+
+/* ---- ② 行頭の整理 ---- */
+const RE_TIME = /^[ \t\u3000]*[\[［(（【]?(?:\d{4}[\/\-.年]\d{1,2}[\/\-.月]\d{1,2}日?[ \t\u3000]*)?\d{1,2}:\d{2}(?::\d{2})?[\]］)）】]?[ \t\u3000]*/;
+const RE_TAG  = /^[ \t\u3000]*(?:\[[^\]\n]*\]|［[^］\n]*］|【[^】\n]*】)[ \t\u3000]*/;
+function prefixProcess(t, s){
+  if (!(s.pf_time || s.pf_tag || (s.pf_sep_on && s.pf_sep))) return t;
+  const rep = String(s.pf_rep || '').replace(/\\n/g, '\n');
+  return t.split('\n').map(l => {
+    if (s.pf_time) l = l.replace(RE_TIME, '');
+    if (s.pf_tag) l = l.replace(RE_TAG, '');
+    if (s.pf_sep_on && s.pf_sep) {
+      const i = l.indexOf(s.pf_sep);
+      if (i >= 0) {
+        const end = i + (s.pf_incl ? s.pf_sep.length : 0);
+        l = (s.pf_mode === 'rep' ? rep : '') + l.slice(end);
+      }
+    }
+    return l;
+  }).join('\n');
+}
+
+/* ---- ③ 全角↔半角 ---- */
+const FULL2HALF = (() => {
+  const m = {};
+  for (let c = 0xFF61; c <= 0xFF9F; c++) {
+    const h = String.fromCharCode(c), f = h.normalize('NFKC');
+    if (f.length === 1 && f !== h) m[f] = h;
+  }
+  return m;
+})();
+function convertWidth(t, s){
+  const shift = (re, d) => { t = t.replace(re, c => String.fromCharCode(c.charCodeAt(0) + d)); };
+  if (s.cv_alnum === 'half') shift(/[Ａ-Ｚａ-ｚ０-９]/g, -0xFEE0);
+  else if (s.cv_alnum === 'full') shift(/[A-Za-z0-9]/g, 0xFEE0);
+  if (s.cv_sym === 'half') shift(/[\uFF01-\uFF0F\uFF1A-\uFF20\uFF3B-\uFF40\uFF5B-\uFF5E]/g, -0xFEE0);
+  else if (s.cv_sym === 'full') shift(/[\u0021-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u007E]/g, 0xFEE0);
+  if (s.cv_kana === 'full') {
+    t = t.replace(/[\uFF61-\uFF9F]+/g, x => x.normalize('NFKC'));
+  } else if (s.cv_kana === 'half') {
+    t = t.replace(/[\u3001\u3002\u300C\u300D\u30A1-\u30FA\u30FB\u30FC]/g, c => {
+      if (FULL2HALF[c]) return FULL2HALF[c];
+      const d = c.normalize('NFD');
+      if (d.length > 1) {
+        let r = '';
+        for (const ch of d) { if (!FULL2HALF[ch]) return c; r += FULL2HALF[ch]; }
+        return r;
+      }
+      return c;
+    });
+  }
+  return t;
+}
+
+/* ---- ④ 削除 ---- */
+const RE_EMOJI = (() => {
+  try {
+    const P = String.raw`(?:(?![\u00A9\u00AE\u203C\u2049\u2122\u2139\u2194-\u2199\u21A9\u21AA])\p{Extended_Pictographic})`;
+    return new RegExp(String.raw`${P}(?:[\uFE0E\uFE0F\u20E3]|\p{Emoji_Modifier}|\u200D${P}|[\u{E0020}-\u{E007F}])*|\p{Regional_Indicator}+|[0-9#*]\uFE0F?\u20E3|\p{Emoji_Modifier}|[\uFE0E\uFE0F\u20E3]`, 'gu');
+  } catch (e) {
+    return /[\u2600-\u27BF\uD83C-\uD83E][\uDC00-\uDFFF]?[\uFE0E\uFE0F\u200D]*/g;
+  }
+})();
+const RE_CTRL  = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g;
+const RE_INVIS = /[\u00AD\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/g;
+const RE_MD    = /[\u2116\u2121\u2160-\u217F\u2460-\u24FF\u3200-\u32FF\u3300-\u33FF]/g;
+const WS_CLASS = '[ \\t\\u00A0\\u1680\\u2000-\\u200A\\u202F\\u205F\\u3000]';
+const RE_LEAD  = new RegExp('^' + WS_CLASS + '+');
+const RE_TRAIL = new RegExp(WS_CLASS + '+$');
+function deleteChars(t, s){
+  if (s.del_emoji) t = t.replace(RE_EMOJI, '');
+  if (s.del_ctrl) t = t.replace(RE_CTRL, '');
+  if (s.del_invis) t = t.replace(RE_INVIS, '');
+  if (s.del_md === 'del') t = t.replace(RE_MD, '');
+  else if (s.del_md === 'nfkc') t = t.replace(RE_MD, c => c.normalize('NFKC'));
+  if (!(s.del_indent || s.del_trail || s.del_collapse || s.del_half || s.del_full || s.del_tab)) return t;
+  return t.split('\n').map(l => {
+    if (s.del_indent) l = l.replace(RE_LEAD, '');
+    if (s.del_trail) l = l.replace(RE_TRAIL, '');
+    if (s.del_collapse) {
+      const lead = (l.match(RE_LEAD) || [''])[0];
+      l = lead + l.slice(lead.length).replace(/[ \u00A0\u3000]{2,}/g, ' ');
+    }
+    if (s.del_half) l = l.replace(/[ \u00A0\u2000-\u200A\u202F\u205F]/g, '');
+    if (s.del_full) l = l.replace(/\u3000/g, '');
+    if (s.del_tab) l = l.replace(/\t/g, '');
+    return l;
+  }).join('\n');
+}
+
+/* ---- ⑤ 空行・重複 ---- */
+const isBlank = l => /^\s*$/.test(l);
+function blankLines(t, s){
+  if (!s.blank && !s.blank_edge) return t;
+  let lines = t.split('\n');
+  if (s.blank === 'all') {
+    lines = lines.filter(l => !isBlank(l));
+  } else {
+    if (s.blank === 'one') {
+      const o = [];
+      for (const l of lines) { if (isBlank(l) && o.length && isBlank(o[o.length - 1])) continue; o.push(isBlank(l) ? '' : l); }
+      lines = o;
+    }
+    if (s.blank_edge) {
+      while (lines.length && isBlank(lines[0])) lines.shift();
+      while (lines.length && isBlank(lines[lines.length - 1])) lines.pop();
+    }
+  }
+  return lines.join('\n');
+}
+function dedupe(t, s){
+  if (!s.dup) return t;
+  const lines = t.split('\n'), out = [], seen = new Set();
+  let prev = null;
+  for (const l of lines) {
+    if (isBlank(l)) { out.push(l); prev = null; continue; }
+    const k = l.trim();
+    if (s.dup === 'adj') { if (prev === k) continue; prev = k; }
+    else { if (seen.has(k)) continue; seen.add(k); }
+    out.push(l);
+  }
+  return out.join('\n');
+}
+
+/* ---- ⑥ 記号区切りで改行 ---- */
+function breakLines(t, s){
+  if (!s.br_on) return t;
+  const chars = [...String(s.br_chars || '')].filter(c => !/\s/.test(c));
+  if (!chars.length) return t;
+  const SEP = new Set(chars);
+  const CLOSE = new Set([...'」』）)】］｝〕〉》”’']);
+  const OPEN = new Set([...'「『（(【［｛〔〈《“‘']);
+  if (!s.br_keep) t = t.replace(/\n/g, '');
+  const out = [];
+  for (const line of t.split('\n')) {
+    if (line === '') { out.push(''); continue; }
+    const cs = [...line];
+    let cur = '', depth = 0;
+    for (let i = 0; i < cs.length; i++) {
+      const c = cs[i];
+      if (OPEN.has(c)) depth++;
+      else if (CLOSE.has(c) && depth > 0) depth--;
+      if (SEP.has(c) && !(s.br_depth && depth > 0)) {
+        let j = i;
+        while (j + 1 < cs.length && (SEP.has(cs[j + 1]) || (s.br_kin && CLOSE.has(cs[j + 1])))) j++;
+        let seg = cs.slice(i, j + 1);
+        for (const ch of seg) if (CLOSE.has(ch) && depth > 0) depth--;
+        if (s.br_del) seg = seg.filter(ch => !SEP.has(ch));
+        cur += seg.join('');
+        if (cur !== '') out.push(cur);
+        cur = '';
+        i = j;
+        while (i + 1 < cs.length && /[ \t\u3000]/.test(cs[i + 1])) i++;
+        continue;
+      }
+      cur += c;
+    }
+    if (cur !== '') out.push(cur);
+  }
+  return out.join('\n');
+}
+
+/* ---- ⑦ 文頭・文末への挿入 ---- */
+function applyMarks(line, pre, suf, pair){
+  const m = line.match(/^([ \t\u3000]*)([\s\S]*?)([ \t\u3000]*)$/);
+  const lead = m[1], body = m[2], trail = m[3];
+  const hasPre = !!pre && body.startsWith(pre), hasSuf = !!suf && body.endsWith(suf);
+  let addPre = !!pre && !hasPre, addSuf = !!suf && !hasSuf;
+  if (pair && (hasPre || hasSuf)) { addPre = false; addSuf = false; }
+  return lead + (addPre ? pre : '') + body + (addSuf ? suf : '') + trail;
+}
+function ruleTargets(s, i, count){
+  const n = Math.max(1, toInt(s['r' + i + '_start'], 1));
+  const m = Math.max(0, toInt(s['r' + i + '_step'], 0));
+  const e = toInt(s['r' + i + '_end'], Infinity);
+  const r = [];
+  for (let k = n; k <= Math.min(count, e); k += m + 1) r.push(k);
+  return r;
+}
+function insertMarks(t, s){
+  const rules = [1, 2].filter(i => s['r' + i + '_on'] && (s['r' + i + '_pre'] || s['r' + i + '_suf']));
+  if (!rules.length) return t;
+  const lines = t.split('\n');
+  const idx = [];
+  lines.forEach((l, i) => { if (!(s.ins_skip && isBlank(l))) idx.push(i); });
+  for (const r of rules) {
+    for (const k of ruleTargets(s, r, idx.length)) {
+      const li = idx[k - 1];
+      lines[li] = applyMarks(lines[li], s['r' + r + '_pre'] || '', s['r' + r + '_suf'] || '', !!s['r' + r + '_pair']);
+    }
+  }
+  return lines.join('\n');
+}
+function ruleHint(s, i, skip){
+  const arr = ruleTargets(s, i, 1e6).slice(0, 7);
+  const more = ruleTargets(s, i, 1e6).length > 6;
+  if (!arr.length) return '適用される行がありません';
+  return '適用される行の例: ' + arr.slice(0, 6).join(', ') + (more ? ', …' : '') + ' 行目' + (skip ? '(空行を除いて数えます)' : '');
+}
+
+/* ---- パイプライン(① → ⑦ 固定順) ---- */
+function runPipeline(src, s){
+  let t = normalizeNewlines(src);
+  if (s.pt_html && hasHtml(t)) t = stripHtml(t);
+  if (s.pt_entity) t = decodeEntities(t);
+  if (s.pt_md) t = stripMarkdown(t);
+  t = prefixProcess(t, s);
+  t = convertWidth(t, s);
+  t = deleteChars(t, s);
+  t = blankLines(t, s);
+  t = dedupe(t, s);
+  t = breakLines(t, s);
+  t = insertMarks(t, s);
+  return t;
+}
+
+/* ---- カウント ---- */
+const SEG = (typeof Intl !== 'undefined' && Intl.Segmenter) ? new Intl.Segmenter('ja', {granularity: 'grapheme'}) : null;
+function glen(str){
+  if (!str) return 0;
+  if (SEG) { let n = 0; for (const _ of SEG.segment(str)) n++; return n; }
+  return Array.from(str).length;
+}
+function countText(t){
+  const lines = t === '' ? [] : t.split('\n');
+  return {
+    chars: glen(t.replace(/\n/g, '')),
+    nospace: glen(t.replace(/\s/g, '')),
+    lines: lines.length,
+    blank: lines.filter(isBlank).length,
+    paras: t.split(/\n[ \t\u3000]*\n/).filter(p => p.trim() !== '').length,
+    bytes: (typeof TextEncoder !== 'undefined') ? new TextEncoder().encode(t).length : t.length
+  };
+}
+
+/* ---- 検索 ---- */
+function buildRe(q, cs, rx){
+  try {
+    const src = rx ? q : q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const fl = 'gm' + (cs ? '' : 'i');
+    if (rx) { try { return {re: new RegExp(src, fl + 'u')}; } catch (e) { /* uフラグ無しで再試行 */ } }
+    return {re: new RegExp(src, fl)};
+  } catch (e) { return {err: '正規表現エラー: ' + e.message}; }
+}
+function collectMatches(text, re, limit){
+  const res = [];
+  re.lastIndex = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    if (m[0] === '') { re.lastIndex++; continue; }
+    res.push({i: m.index, len: m[0].length, m});
+    if (res.length >= limit) break;
+  }
+  return res;
+}
+function expandRepl(r, m){
+  return r.replace(/\\([nt\\])|\$(\$|&|\d{1,2}|<([^>]+)>)/g, (x, e, tok, name) => {
+    if (e) return e === 'n' ? '\n' : e === 't' ? '\t' : '\\';
+    if (tok === '$') return '$';
+    if (tok === '&') return m[0];
+    if (name !== undefined) return (m.groups && m.groups[name] !== undefined) ? m.groups[name] : '';
+    const n = parseInt(tok, 10);
+    return m[n] !== undefined ? m[n] : x;
+  });
+}
+
+/* =========================================================
+   UI
+   ========================================================= */
+function initUI(){
+  const $ = id => document.getElementById(id);
+  const src = $('src'), out = $('out'), hl = $('hl');
+  const LS = {
+    get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+    set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+  };
+
+  /* ルールUI(文頭・文末挿入) */
+  function ruleHTML(i, pre, suf){
+    return `<fieldset class="rule"><legend><label class="chk" style="min-height:28px"><input type="checkbox" data-k="r${i}_on" data-m> ルール${i}を使う</label></legend>
+      <div class="grid2">
+        <label>文頭に付ける<input type="text" data-k="r${i}_pre" value="${pre}" placeholder="例: 「 / ・ / ＊"></label>
+        <label>文末に付ける<input type="text" data-k="r${i}_suf" value="${suf}" placeholder="例: 」"></label>
+      </div>
+      <div class="grid3">
+        <label>n行目から<input type="number" inputmode="numeric" min="1" data-k="r${i}_start" value="1"></label>
+        <label>m行おき<input type="number" inputmode="numeric" min="0" data-k="r${i}_step" value="0"></label>
+        <label>終了行(空欄=最後まで)<input type="number" inputmode="numeric" min="1" data-k="r${i}_end" value=""></label>
+      </div>
+      <label class="chk"><input type="checkbox" data-k="r${i}_pair"> 文頭・文末のどちらかに既にあれば両方とも付けない</label>
+      <p class="hint" id="r${i}_hint"></p></fieldset>`;
+  }
+  $('rules').innerHTML = ruleHTML(1, '「', '」') + '<div style="height:8px"></div>' + ruleHTML(2, '', '');
+
+  /* 設定の読み書き */
+  function readSettings(){
+    const o = {};
+    document.querySelectorAll('[data-k]').forEach(el => { o[el.dataset.k] = el.type === 'checkbox' ? el.checked : el.value; });
+    return o;
+  }
+  function applySettings(o){
+    document.querySelectorAll('[data-k]').forEach(el => {
+      const k = el.dataset.k;
+      if (!(k in o)) return;
+      if (el.type === 'checkbox') el.checked = !!o[k];
+      else if (el.tagName === 'SELECT') { if ([...el.options].some(op => op.value === o[k])) el.value = o[k]; }
+      else el.value = o[k];
+    });
+  }
+  const DEFAULTS = readSettings();
+  const SKEY = 'textfmt.settings.v1', PKEY = 'textfmt.presets.v1', TKEY = 'textfmt.theme';
+  const saved = LS.get(SKEY);
+  if (saved && typeof saved === 'object') applySettings(saved);
+
+  function saveSettings(){ LS.set(SKEY, readSettings()); }
+  function updateBadges(){
+    document.querySelectorAll('details.grp').forEach(d => {
+      let n = 0;
+      d.querySelectorAll('[data-m]').forEach(el => {
+        if (el.type === 'checkbox') { if (el.checked) n++; }
+        else if (el.value !== '') n++;
+      });
+      d.querySelector('.badge').textContent = n ? String(n) : '';
+    });
+  }
+  function updateHints(){
+    const s = readSettings();
+    [1, 2].forEach(i => { $('r' + i + '_hint').textContent = ruleHint(s, i, s.ins_skip); });
+  }
+  if (window.matchMedia && window.matchMedia('(min-width:900px)').matches) {
+    document.querySelectorAll('details.grp').forEach(d => { d.open = true; });
+  }
+
+  /* トースト */
+  let toastTimer;
+  function toast(msg){
+    const t = $('toast');
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  /* カウント表示 */
+  const fmt = n => Number(n).toLocaleString('ja-JP');
+  function countsHTML(t){
+    const c = countText(t);
+    return [['文字', fmt(c.chars)], ['空白除く', fmt(c.nospace)], ['行', fmt(c.lines)], ['空行', fmt(c.blank)], ['段落', fmt(c.paras)], ['UTF-8', fmt(c.bytes) + 'B']]
+      .map(([k, v]) => `<span class="chip">${k} <b>${v}</b></span>`).join('');
+  }
+  function updateCounts(){
+    $('srcCounts').innerHTML = countsHTML(src.value);
+    $('outCounts').innerHTML = countsHTML(out.value);
+  }
+
+  /* 履歴(元に戻す/やり直し) */
+  const H = {stack: [], pos: -1, timer: null};
+  function snap(){ return {i: src.value, o: out.value}; }
+  function updateUndoBtns(){ $('undoBtn').disabled = H.pos <= 0; $('redoBtn').disabled = H.pos >= H.stack.length - 1; }
+  function pushHistory(){
+    clearTimeout(H.timer);
+    const s = snap(), cur = H.stack[H.pos];
+    if (cur && cur.i === s.i && cur.o === s.o) { updateUndoBtns(); return; }
+    H.stack = H.stack.slice(0, H.pos + 1);
+    H.stack.push(s);
+    let total = H.stack.reduce((a, x) => a + x.i.length + x.o.length, 0);
+    while (H.stack.length > 100 || (total > 30e6 && H.stack.length > 2)) { const x = H.stack.shift(); total -= x.i.length + x.o.length; }
+    H.pos = H.stack.length - 1;
+    updateUndoBtns();
+  }
+  function schedulePush(){ clearTimeout(H.timer); H.timer = setTimeout(pushHistory, 600); }
+  function restore(s){ src.value = s.i; out.value = s.o; F.pos = 0; afterOutChange(); updateCounts(); }
+  function undo(){ pushHistory(); if (H.pos > 0) { H.pos--; restore(H.stack[H.pos]); updateUndoBtns(); } }
+  function redo(){ pushHistory(); if (H.pos < H.stack.length - 1) { H.pos++; restore(H.stack[H.pos]); updateUndoBtns(); } }
+
+  /* 検索・ハイライト */
+  const F = {matches: [], cur: -1, pos: 0, capped: false};
+  function syncMetrics(){
+    const cs = getComputedStyle(out);
+    const base = parseFloat(cs.paddingRight) || 0;
+    const bw = (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0);
+    const sb = Math.max(0, out.offsetWidth - out.clientWidth - bw);
+    hl.style.paddingRight = (base + sb) + 'px';
+  }
+  function renderHL(){
+    const ms = F.matches, text = out.value;
+    if (!ms.length) { hl.textContent = ''; return; }
+    let h = '', last = 0;
+    for (let k = 0; k < ms.length; k++) {
+      const m = ms[k];
+      h += esc(text.slice(last, m.i)) + '<mark' + (k === F.cur ? ' class="cur"' : '') + '>' + esc(text.slice(m.i, m.i + m.len)) + '</mark>';
+      last = m.i + m.len;
+    }
+    hl.innerHTML = h + esc(text.slice(last)) + '\u200B';
+    syncMetrics();
+    hl.scrollTop = out.scrollTop;
+  }
+  function scrollToCur(){
+    const el = hl.querySelector('mark.cur');
+    if (!el) return;
+    out.scrollTop = Math.max(0, el.offsetTop - out.clientHeight / 3);
+    hl.scrollTop = out.scrollTop;
+  }
+  function refreshFind(scroll){
+    const q = $('fq').value;
+    F.matches = []; F.capped = false;
+    let err = '';
+    if (q) {
+      const r = buildRe(q, $('fcs').checked, $('frx').checked);
+      if (r.err) err = r.err;
+      else { F.matches = collectMatches(out.value, r.re, 20000); F.capped = F.matches.length >= 20000; }
+    }
+    if (F.matches.length) { const k = F.matches.findIndex(m => m.i >= F.pos); F.cur = k < 0 ? 0 : k; }
+    else F.cur = -1;
+    $('ferr').textContent = err;
+    $('fcount').textContent = F.matches.length ? `${F.cur + 1} / ${F.matches.length}${F.capped ? '+' : ''}件` : (q && !err ? '0件' : '');
+    renderHL();
+    if (scroll) scrollToCur();
+  }
+  function afterOutChange(){ refreshFind(false); }
+  function stepFind(d){
+    if (!F.matches.length) return;
+    F.cur = (F.cur + d + F.matches.length) % F.matches.length;
+    F.pos = F.matches[F.cur].i;
+    $('fcount').textContent = `${F.cur + 1} / ${F.matches.length}${F.capped ? '+' : ''}件`;
+    renderHL(); scrollToCur();
+  }
+  function replaceOne(){
+    if (F.cur < 0) return;
+    const m = F.matches[F.cur], rx = $('frx').checked;
+    const rep = rx ? expandRepl($('fr').value, m.m) : $('fr').value;
+    const t = out.value;
+    out.value = t.slice(0, m.i) + rep + t.slice(m.i + m.len);
+    F.pos = m.i + rep.length;
+    updateCounts(); refreshFind(true); pushHistory();
+  }
+  function replaceAll(del){
+    const q = $('fq').value;
+    if (!q) return;
+    const r = buildRe(q, $('fcs').checked, $('frx').checked);
+    if (r.err) return;
+    const t = out.value, ms = collectMatches(t, r.re, Infinity);
+    if (!ms.length) { toast('一致する文字がありません'); return; }
+    const rx = $('frx').checked, repRaw = $('fr').value;
+    let res = '', last = 0;
+    for (const m of ms) {
+      res += t.slice(last, m.i) + (del ? '' : (rx ? expandRepl(repRaw, m.m) : repRaw));
+      last = m.i + m.len;
+    }
+    out.value = res + t.slice(last);
+    F.pos = 0;
+    updateCounts(); refreshFind(false); pushHistory();
+    toast(`${ms.length}件を${del ? '削除' : '置換'}しました`);
+  }
+
+  /* 実行 */
+  function run(){
+    out.value = runPipeline(src.value, readSettings());
+    F.pos = 0;
+    updateCounts(); refreshFind(false); pushHistory();
+  }
+  let autoTimer;
+  function autoRun(){
+    if (!$('auto').checked) return;
+    clearTimeout(autoTimer);
+    autoTimer = setTimeout(run, 300);
+  }
+
+  /* コピー・保存・読み込み */
+  async function copyOut(){
+    const t = out.value;
+    if (!t) { toast('コピーする文字がありません'); return; }
+    try {
+      await navigator.clipboard.writeText(t);
+      toast('コピーしました(' + fmt(glen(t)) + '文字)');
+    } catch (e) {
+      out.focus(); out.setSelectionRange(0, out.value.length);
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (_) { /* ignore */ }
+      toast(ok ? 'コピーしました' : 'コピーできませんでした。選択された文字を手動でコピーしてください');
+    }
+  }
+  function download(name, text, type){
+    const b = new Blob([text], {type: type || 'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  function stamp(){
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+  }
+  async function readFileText(file){
+    const buf = await file.arrayBuffer(), enc = $('enc').value;
+    if (enc === 'auto') {
+      try { return new TextDecoder('utf-8', {fatal: true}).decode(buf); }
+      catch (e) { return new TextDecoder('shift_jis').decode(buf); }
+    }
+    return new TextDecoder(enc).decode(buf);
+  }
+  async function loadFile(file){
+    if (!file) return;
+    try {
+      src.value = await readFileText(file);
+      updateCounts(); pushHistory(); autoRun();
+      toast(`「${file.name}」を読み込みました`);
+    } catch (e) { toast('ファイルを読み込めませんでした'); }
+  }
+  function insertAtCursor(ta, text){
+    const a = ta.selectionStart, b = ta.selectionEnd;
+    ta.setRangeText(text, a, b, 'end');
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+  function htmlToTextDOM(html){
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script,style,template,noscript,head').forEach(n => n.remove());
+    const BLOCK = new Set('ADDRESS ARTICLE ASIDE BLOCKQUOTE DIV DL DT DD FIELDSET FIGCAPTION FIGURE FOOTER FORM H1 H2 H3 H4 H5 H6 HEADER HR LI MAIN NAV OL P PRE SECTION TABLE TR UL'.split(' '));
+    let o = '';
+    const nl = () => { o = o.replace(/[ \t]+$/, ''); if (o !== '' && !o.endsWith('\n')) o += '\n'; };
+    (function walk(n, pre){
+      for (const c of n.childNodes) {
+        if (c.nodeType === 3) {
+          let s = c.nodeValue;
+          if (!pre) { s = s.replace(/[ \t\r\n\f]+/g, ' '); if (o === '' || o.endsWith('\n') || o.endsWith(' ')) s = s.replace(/^ /, ''); }
+          o += s;
+        } else if (c.nodeType === 1) {
+          const tag = c.tagName;
+          if (tag === 'BR') { o = o.replace(/[ \t]+$/, ''); o += '\n'; continue; }
+          if (tag === 'TD' || tag === 'TH') { walk(c, pre); o += ' '; continue; }
+          const b = BLOCK.has(tag);
+          if (b) nl();
+          walk(c, pre || tag === 'PRE');
+          if (b) nl();
+        }
+      }
+    })(doc.body, false);
+    return o.replace(/[ \t]+$/gm, '').replace(/\n+$/, '');
+  }
+
+  /* イベント登録 */
+  src.addEventListener('input', () => { updateCounts(); schedulePush(); autoRun(); });
+  out.addEventListener('input', () => { F.pos = out.selectionStart || 0; updateCounts(); afterOutChange(); schedulePush(); });
+  out.addEventListener('scroll', () => { hl.scrollTop = out.scrollTop; hl.scrollLeft = out.scrollLeft; });
+  if (window.ResizeObserver) new ResizeObserver(syncMetrics).observe(out);
+  window.addEventListener('resize', syncMetrics);
+
+  src.addEventListener('paste', e => {
+    if (!$('options').querySelector('[data-k=paste_rich]').checked) return;
+    const cd = e.clipboardData;
+    if (!cd) return;
+    const html = cd.getData('text/html');
+    if (!html) return;
+    let text;
+    try { text = htmlToTextDOM(html); } catch (err) { return; }
+    e.preventDefault();
+    insertAtCursor(src, text);
+  });
+  ['dragenter', 'dragover'].forEach(ev => src.addEventListener(ev, e => { e.preventDefault(); src.classList.add('drop'); }));
+  ['dragleave', 'drop'].forEach(ev => src.addEventListener(ev, e => { e.preventDefault(); src.classList.remove('drop'); }));
+  src.addEventListener('drop', e => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) loadFile(f); });
+
+  $('options').addEventListener('input', () => { saveSettings(); updateBadges(); updateHints(); autoRun(); });
+  $('options').addEventListener('change', () => { saveSettings(); updateBadges(); updateHints(); autoRun(); });
+  $('auto').addEventListener('change', () => { saveSettings(); if ($('auto').checked) run(); });
+  ['fcs', 'frx'].forEach(id => $(id).addEventListener('change', () => { saveSettings(); refreshFind(true); }));
+  $('fq').addEventListener('input', () => { F.pos = out.selectionStart || 0; refreshFind(true); });
+  $('fq').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); stepFind(e.shiftKey ? -1 : 1); } });
+  $('fr').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); replaceOne(); } });
+  $('fnext').addEventListener('click', () => stepFind(1));
+  $('fprev').addEventListener('click', () => stepFind(-1));
+  $('frep').addEventListener('click', replaceOne);
+  $('frepall').addEventListener('click', () => replaceAll(false));
+  $('fdel').addEventListener('click', () => replaceAll(true));
+
+  $('runBtn').addEventListener('click', () => { run(); toast('整形しました'); });
+  document.querySelectorAll('.copyBtn').forEach(b => b.addEventListener('click', copyOut));
+  $('dlBtn').addEventListener('click', () => { if (!out.value) { toast('保存する文字がありません'); return; } download(`formatted-${stamp()}.txt`, out.value); });
+  $('toSrcBtn').addEventListener('click', () => { src.value = out.value; updateCounts(); pushHistory(); toast('整形後を元テキストにしました'); });
+  $('clearBtn').addEventListener('click', () => { src.value = ''; out.value = ''; F.pos = 0; updateCounts(); afterOutChange(); pushHistory(); });
+  $('openBtn').addEventListener('click', () => $('fileIn').click());
+  $('fileIn').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value = ''; });
+  $('pasteBtn').addEventListener('click', async () => {
+    try { const t = await navigator.clipboard.readText(); if (!t) { toast('クリップボードが空です'); return; } insertAtCursor(src, t); }
+    catch (e) { toast('貼り付けできませんでした。入力欄を長押し(またはCtrl+V)で貼り付けてください'); }
+  });
+  $('undoBtn').addEventListener('click', undo);
+  $('redoBtn').addEventListener('click', redo);
+  document.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    const el = e.target;
+    if (el && (el.tagName === 'SELECT' || (el.tagName === 'INPUT' && el.type !== 'checkbox'))) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+  });
+
+  /* テーマ */
+  const THEMES = ['auto', 'light', 'dark'], TNAME = {auto: '自動', light: 'ライト', dark: 'ダーク'};
+  function setTheme(t){
+    if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+    $('themeBtn').textContent = 'テーマ: ' + TNAME[t];
+    LS.set(TKEY, t);
+  }
+  setTheme(THEMES.includes(LS.get(TKEY)) ? LS.get(TKEY) : 'auto');
+  $('themeBtn').addEventListener('click', () => {
+    const cur = LS.get(TKEY) || 'auto';
+    setTheme(THEMES[(THEMES.indexOf(cur) + 1) % THEMES.length]);
+  });
+
+  /* プリセット・設定入出力 */
+  function loadPresets(){ const p = LS.get(PKEY); return p && typeof p === 'object' ? p : {}; }
+  function renderPresets(selected){
+    const p = loadPresets(), sel = $('presetSel');
+    sel.innerHTML = '';
+    const names = Object.keys(p);
+    if (!names.length) { const o = document.createElement('option'); o.value = ''; o.textContent = '(保存済みのプリセットはありません)'; sel.appendChild(o); return; }
+    names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o); });
+    if (selected && names.includes(selected)) sel.value = selected;
+  }
+  function afterSettingsApplied(){ saveSettings(); updateBadges(); updateHints(); refreshFind(false); autoRun(); }
+  $('presetSave').addEventListener('click', () => {
+    const name = $('presetName').value.trim();
+    if (!name) { toast('プリセット名を入力してください'); return; }
+    const p = loadPresets(); p[name] = readSettings();
+    if (!LS.set(PKEY, p)) { toast('保存できませんでした(ブラウザの保存が無効の可能性)'); return; }
+    renderPresets(name); toast(`「${name}」を保存しました`);
+  });
+  $('presetLoad').addEventListener('click', () => {
+    const name = $('presetSel').value, p = loadPresets();
+    if (!name || !p[name]) { toast('プリセットを選んでください'); return; }
+    applySettings(Object.assign({}, DEFAULTS, p[name])); afterSettingsApplied(); toast(`「${name}」を読み込みました`);
+  });
+  $('presetDel').addEventListener('click', () => {
+    const name = $('presetSel').value, p = loadPresets();
+    if (!name || !p[name]) return;
+    if (!confirm(`プリセット「${name}」を削除しますか?`)) return;
+    delete p[name]; LS.set(PKEY, p); renderPresets(); toast('削除しました');
+  });
+  $('expBtn').addEventListener('click', () => download('textfmt-settings.json', JSON.stringify({settings: readSettings(), presets: loadPresets()}, null, 2), 'application/json'));
+  $('impBtn').addEventListener('click', () => $('impIn').click());
+  $('impIn').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      if (j.settings) applySettings(Object.assign({}, DEFAULTS, j.settings));
+      if (j.presets && typeof j.presets === 'object') LS.set(PKEY, Object.assign(loadPresets(), j.presets));
+      renderPresets(); afterSettingsApplied(); toast('設定を読み込みました');
+    } catch (err) { toast('設定ファイルを読み込めませんでした'); }
+  });
+  $('resetBtn').addEventListener('click', () => {
+    if (!confirm('すべての設定を初期状態に戻しますか?(プリセットは残ります)')) return;
+    applySettings(DEFAULTS); afterSettingsApplied(); toast('初期化しました');
+  });
+
+  /* 初期表示 */
+  renderPresets();
+  updateBadges(); updateHints(); updateCounts(); syncMetrics();
+  pushHistory();
+}
+if (typeof document !== 'undefined') initUI();
+</script>
+</body>
+</html>
